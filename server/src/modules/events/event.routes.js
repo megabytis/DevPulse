@@ -43,16 +43,77 @@ eventRouter.post("/events", async (req, res, next) => {
 
 eventRouter.get("/events", async (req, res, next) => {
   try {
-    const { projectId } = req.query;
+    let { projectId, type, page, limit, sortBy, from, to } = req.query;
 
+    const searchEventQuery = {};
+
+    // ProjectId-filter
     if (projectId) {
       validateMongoID(projectId);
-      return res.json({
-        data: await eventModel.find({ projectId: projectId }),
-      });
+      searchEventQuery.projectId = projectId;
     }
 
-    const events = await eventModel.find();
+    // type-filter
+    if (type) {
+      const allowedType = ["ERROR", "INFO", "WARN"];
+      if (!allowedType.includes(type)) {
+        return res.status(400).json({ message: "Invalid type filter" });
+      }
+      searchEventQuery.type = type;
+    }
+
+    // Pagination
+    page = parseInt(page) || 1;
+
+    const MAX_LIMIT = 10;
+    limit = parseInt(limit) || MAX_LIMIT;
+    limit = limit > MAX_LIMIT ? MAX_LIMIT : limit;
+
+    const skip = (page - 1) * limit;
+
+    const totalEvents = await eventModel.countDocuments(searchEventQuery);
+    const totalPages = Math.ceil(totalEvents / limit);
+
+    // Sorting Logic
+    const sortOptions = {};
+    if (sortBy === "createdAt") {
+      sortOptions.createdAt = -1;
+    } else if (sortBy === "name") {
+      sortOptions.name = 1;
+    } else {
+      sortOptions.createdAt = -1;
+    }
+
+    // from-to-filter
+    if (from && to) {
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+
+      if (fromDate <= toDate && !isNaN(fromDate) && !isNaN(toDate)) {
+        searchEventQuery.createdAt = {
+          $gte: fromDate,
+          $lte: toDate,
+        };
+      }
+    } else if (from) {
+      searchEventQuery.createdAt = {
+        $gte: new Date(from),
+      };
+    } else if (to) {
+      let toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      searchEventQuery.createdAt = {
+        $lte: new Date(to),
+      };
+    }
+
+    const events = await eventModel
+      .find(searchEventQuery)
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limit);
+
     return res.json({
       data: events,
     });
@@ -60,3 +121,5 @@ eventRouter.get("/events", async (req, res, next) => {
     next(err);
   }
 });
+
+module.exports = eventRouter;

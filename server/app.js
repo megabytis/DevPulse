@@ -6,11 +6,13 @@ const express = require("express");
 const { connectDB } = require("./src/config/database");
 
 const projectRouter = require("./src/modules/projects/project.routes");
+const eventRouter = require("./src/modules/events/event.routes");
 
 const app = express();
 app.use(express.json());
 
 app.use("/", projectRouter);
+app.use("/", eventRouter);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
