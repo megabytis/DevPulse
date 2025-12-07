@@ -7,7 +7,8 @@ const eventRouter = express.Router();
 
 eventRouter.post("/events", async (req, res, next) => {
   try {
-    const { projectId, name, message } = req.body;
+    const { projectId, name, message, service, route, type, metadata } =
+      req.body;
     if (!projectId || !name || !message) {
       return res.status(400).json({ message: "Missing required fields" });
     }
@@ -24,6 +25,10 @@ eventRouter.post("/events", async (req, res, next) => {
       projectId,
       name,
       message,
+      service,
+      route,
+      type,
+      metadata,
     });
 
     const savedEvent = await event.save();
